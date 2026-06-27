@@ -3,7 +3,6 @@
 
 Σε αυτό το workshop θα χτίσεις από το μηδέν ένα **CI/CD pipeline** χρησιμοποιώντας GitHub Actions. Θα δουλέψεις με πραγματικό cloud infrastructure, secrets, Docker, και branch-based deployments.
 
-**Εκτιμώμενος χρόνος:** 2–3 ώρες  
 **Δυσκολία:** ⭐⭐⭐  
 **Προαπαιτούμενα:** GitHub account, DockerHub account
 
@@ -38,12 +37,12 @@ push σε οποιοδήποτε branch
 
 ---
 
-## Setup (10 λεπτά)
+## Setup
 
-### 1. Fork ή Clone το repository
+### 1. Clone το repository
 
 ```bash
-git clone https://github.com/YOUR_INSTRUCTOR/github-actions-workshop.git
+git clone git@github.com:micksar/github-actions-workshop.git
 cd github-actions-workshop
 ```
 

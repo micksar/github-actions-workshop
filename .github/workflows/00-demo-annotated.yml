@@ -1,0 +1,261 @@
+# ╔══════════════════════════════════════════════════════════════════════╗
+# ║          DEMO: Πώς Δουλεύει ένα GitHub Actions Workflow             ║
+# ║          Κάθε γραμμή εξηγείται παρακάτω.                            ║
+# ╚══════════════════════════════════════════════════════════════════════╝
+#
+# Αυτό το αρχείο είναι YAML (.yml).
+# Στο YAML, η εσοχή (indentation) είναι ΚΡΙΣΙΜΗ — χρησιμοποίησε πάντα spaces, ΟΧΙ tabs.
+# Σχόλια ξεκινάνε με #
+
+
+# ─── ΕΝΟΤΗΤΑ 1: Το όνομα του workflow ────────────────────────────────────────
+#
+# Αυτό εμφανίζεται στο GitHub UI → Actions tab.
+# Μπορεί να είναι οτιδήποτε, είναι μόνο για εμάς.
+#
+name: "DEMO — GitHub Actions Explained"
+
+
+# ─── ΕΝΟΤΗΤΑ 2: Triggers — Πότε τρέχει ──────────────────────────────────────
+#
+# Το "on:" ορίζει ΤΙ event ενεργοποιεί το workflow.
+# Μπορεί να είναι: push, pull_request, schedule, workflow_dispatch, κλπ.
+#
+on:
+
+  # workflow_dispatch: Επιτρέπει MANUAL trigger από το GitHub UI
+  # (υπάρχει κουμπί "Run workflow" στο Actions tab)
+  workflow_dispatch:
+    inputs:
+      student_name:
+        description: "Πώς σε λένε;"
+        required: true
+        default: "DevOps Student"
+
+  # push: Τρέχει αυτόματα όταν γίνεται git push
+  push:
+    branches:
+      - main        # ΜΟΝΟ αν το push είναι στο branch "main"
+      - develop     # ή στο "develop"
+    paths:
+      - '.github/workflows/00-demo-annotated.yml'   # ΜΟΝΟ αν άλλαξε αυτό το αρχείο
+      # (χωρίς το paths:, τρέχει σε κάθε push ανεξάρτητα από ποιο αρχείο άλλαξε)
+
+  # pull_request: Τρέχει όταν ανοίγει ή ενημερώνεται PR
+  pull_request:
+    branches: [main]
+
+
+# ─── ΕΝΟΤΗΤΑ 3: Environment Variables — Καθολικές μεταβλητές ─────────────────
+#
+# Αυτές είναι διαθέσιμες σε ΟΛΟΚΛΗΡΟ το workflow (όλα τα jobs).
+# Χρησιμοποιείς τις στο shell ως: $MY_VAR
+# ή στο YAML ως: ${{ env.MY_VAR }}
+#
+env:
+  APP_NAME: "MyFinTechApp"
+  VERSION:  "1.0.0"
+  COMPANY:  "Mellon Group"
+
+
+# ─── ΕΝΟΤΗΤΑ 4: Jobs — Τα εργασιακά τμήματα ─────────────────────────────────
+#
+# Ένα workflow έχει 1+ jobs.
+# Κάθε job τρέχει σε ΔΙΚΟ ΤΟΥ virtual machine (runner) — εξ ορισμού παράλληλα.
+# Αν θέλεις να τρέξουν σειριακά, χρησιμοποίησε "needs:".
+#
+jobs:
+
+  # ── Job 1: "hello-world" ────────────────────────────────────────────────────
+  #
+  # Το "hello-world" είναι το ID του job — το χρησιμοποιούμε στο "needs:" αλλού.
+  # Μπορεί να είναι οτιδήποτε (χωρίς κενά).
+  #
+  hello-world:
+
+    # name: Αυτό εμφανίζεται στο GitHub UI (human-readable)
+    name: "Step 1 — Hello World"
+
+    # runs-on: Τι λειτουργικό σύστημα να χρησιμοποιήσει ο runner.
+    # Επιλογές: ubuntu-latest, windows-latest, macos-latest
+    # Το ubuntu-latest είναι η πιο κοινή επιλογή (γρήγορο + δωρεάν).
+    runs-on: ubuntu-latest
+
+    # steps: Λίστα εντολών που τρέχουν ΣΕΙΡΙΑΚΑ μέσα στο job.
+    # Κάθε step είναι είτε:
+    #   - "run:" → εκτελεί shell command
+    #   - "uses:" → χρησιμοποιεί έτοιμο Action από το GitHub Marketplace
+    #
+    steps:
+
+      # Κάθε step μπορεί να έχει "name:" για readability στο UI
+      - name: "Print a simple message"
+        run: echo "Hello from GitHub Actions!"
+        #    └── αυτό τρέχει ως bash command στον runner
+
+      - name: "Multi-line shell script"
+        run: |
+          # Το | επιτρέπει πολλές γραμμές shell
+          echo "App:     $APP_NAME"
+          echo "Version: $VERSION"
+          echo "Company: $COMPANY"
+          echo "Runner OS: $RUNNER_OS"
+          echo "Current directory: $(pwd)"
+          echo "Who am I: $(whoami)"
+
+      - name: "Show GitHub context variables"
+        run: |
+          # Αυτές οι μεταβλητές παρέχονται αυτόματα από το GitHub
+          echo "Repository:  ${{ github.repository }}"
+          echo "Branch:      ${{ github.ref_name }}"
+          echo "Commit SHA:  ${{ github.sha }}"
+          echo "Triggered by: ${{ github.actor }}"
+          echo "Event type:  ${{ github.event_name }}"
+
+      - name: "Show manual input (μόνο αν triggered manually)"
+        # if: τρέχει αυτό το step ΜΟΝΟ αν η συνθήκη είναι αληθής
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          echo "Γεια σου, ${{ github.event.inputs.student_name }}!"
+
+
+  # ── Job 2: "setup-and-run" ──────────────────────────────────────────────────
+  #
+  # Αυτό το job δείχνει πώς χρησιμοποιούμε έτοιμα Actions από το Marketplace.
+  # Κοινά Actions: actions/checkout, actions/setup-python, actions/upload-artifact
+  #
+  setup-and-run:
+    name: "Step 2 — Setup & Run Code"
+    runs-on: ubuntu-latest
+
+    # needs: αυτό το job ΔΕΝ ξεκινάει αν δεν τελειώσει πρώτα το "hello-world"
+    needs: hello-world
+
+    # Αυτές οι env variables ισχύουν ΜΟΝΟ για αυτό το job
+    env:
+      ENVIRONMENT: "demo"
+      DEBUG:       "true"
+
+    steps:
+
+      # actions/checkout: Κατεβάζει τον κώδικα του repo στον runner.
+      # ΠΑΝΤΑ πρέπει να είναι το πρώτο step — χωρίς αυτό, ο runner δεν έχει κώδικα.
+      - name: "Checkout repository"
+        uses: actions/checkout@v4
+        # uses: <author>/<action-name>@<version>
+        # Το v4 είναι η έκδοση — ΠΑΝΤΑ καρφώνουμε έκδοση για stability
+
+      # actions/setup-python: Εγκαθιστά Python στον runner
+      - name: "Set up Python"
+        uses: actions/setup-python@v5
+        with:
+          # "with:" → παράμετροι για το Action (διαφέρουν ανά action)
+          python-version: "3.11"
+          cache: "pip"   # cache τα pip packages για ταχύτητα
+
+      - name: "Install dependencies"
+        run: pip install -r app/requirements.txt
+
+      - name: "Run tests"
+        run: |
+          cd app
+          pytest tests/ -v
+        env:
+          # Μπορείς να ορίσεις env variables και μέσα σε ένα step
+          ENVIRONMENT: testing
+
+      - name: "Create a file as artifact"
+        run: |
+          mkdir -p reports
+          echo "Test run: $(date)" > reports/test-report.txt
+          echo "Branch: ${{ github.ref_name }}" >> reports/test-report.txt
+          echo "Status: PASSED" >> reports/test-report.txt
+
+      # actions/upload-artifact: Αποθηκεύει αρχεία για να τα κατεβάσεις μετά από το UI
+      - name: "Upload test report"
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report
+          path: reports/
+
+
+  # ── Job 3: "conditional-job" ────────────────────────────────────────────────
+  #
+  # Δείχνει conditional execution και outputs μεταξύ jobs
+  #
+  conditional-job:
+    name: "Step 3 — Conditionals & Outputs"
+    runs-on: ubuntu-latest
+    needs: setup-and-run
+
+    # outputs: τιμές που αυτό το job "εκθέτει" για να τις χρησιμοποιήσουν άλλα jobs
+    outputs:
+      deploy_env: ${{ steps.decide.outputs.environment }}
+
+    steps:
+
+      - name: "Decide deployment environment"
+        id: decide
+        # id: δίνουμε ένα ID στο step για να μπορούμε να αναφερόμαστε στα outputs του
+        run: |
+          if [ "${{ github.ref_name }}" == "main" ]; then
+            echo "environment=production" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref_name }}" == "develop" ]; then
+            echo "environment=staging" >> $GITHUB_OUTPUT
+          else
+            echo "environment=preview" >> $GITHUB_OUTPUT
+          fi
+          # $GITHUB_OUTPUT: special file που γράφουμε outputs
+          # format: key=value
+
+      - name: "Show decision"
+        run: |
+          echo "Branch '${{ github.ref_name }}' → environment: ${{ steps.decide.outputs.environment }}"
+
+      - name: "This runs ONLY on main"
+        if: github.ref_name == 'main'
+        run: echo "Production deployment would happen here!"
+
+      - name: "This runs ONLY on develop"
+        if: github.ref_name == 'develop'
+        run: echo "Staging deployment would happen here!"
+
+      - name: "This ALWAYS runs, even if previous steps failed"
+        if: always()
+        run: |
+          echo "Cleanup step — runs regardless of success/failure"
+          echo "Job status so far: ${{ job.status }}"
+
+
+  # ── Job 4: "summary" ────────────────────────────────────────────────────────
+  summary:
+    name: "Step 4 — Final Summary"
+    runs-on: ubuntu-latest
+    needs: [hello-world, setup-and-run, conditional-job]
+    if: always()  # τρέχει ακόμα κι αν τα προηγούμενα jobs απέτυχαν
+
+    steps:
+      - name: "Print workflow summary"
+        run: |
+          echo "╔══════════════════════════════════╗"
+          echo "║       WORKFLOW COMPLETE!          ║"
+          echo "╚══════════════════════════════════╝"
+          echo ""
+          echo "hello-world:     ${{ needs.hello-world.result }}"
+          echo "setup-and-run:   ${{ needs.setup-and-run.result }}"
+          echo "conditional-job: ${{ needs.conditional-job.result }}"
+          echo "deploy target:   ${{ needs.conditional-job.outputs.deploy_env }}"
+          echo ""
+          echo "Repository: ${{ github.repository }}"
+          echo "Triggered:  ${{ github.actor }} @ ${{ github.sha }}"
+
+      # GitHub Step Summary: εμφανίζεται ως formatted summary στο Actions UI
+      - name: "Write to GitHub Step Summary"
+        run: |
+          echo "## Workflow Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| hello-world | ${{ needs.hello-world.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| setup-and-run | ${{ needs.setup-and-run.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| conditional-job | ${{ needs.conditional-job.result }} |" >> $GITHUB_STEP_SUMMARY
