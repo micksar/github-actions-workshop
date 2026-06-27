@@ -1,0 +1,87 @@
+name: "Exercise 3 — Docker Build & Push (SOLUTION)"
+
+on:
+  push:
+    branches: [main, develop]
+
+jobs:
+
+  build-and-push:
+    name: "Build & Push to DockerHub"
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag:  ${{ steps.set-tag.outputs.tag }}
+      image_full: ${{ steps.set-tag.outputs.full }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set image tag
+        id: set-tag
+        run: |
+          if [ "${{ github.ref_name }}" == "main" ]; then
+            echo "tag=latest" >> $GITHUB_OUTPUT
+            echo "full=${{ secrets.DOCKERHUB_USERNAME }}/workshop-app:latest" >> $GITHUB_OUTPUT
+          else
+            echo "tag=develop" >> $GITHUB_OUTPUT
+            echo "full=${{ secrets.DOCKERHUB_USERNAME }}/workshop-app:develop" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Show image info
+        run: |
+          echo "Branch:     ${{ github.ref_name }}"
+          echo "Tag:        ${{ steps.set-tag.outputs.tag }}"
+          echo "Full image: ${{ steps.set-tag.outputs.full }}"
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and Push
+        uses: docker/build-push-action@v6
+        with:
+          context: ./app
+          push: true
+          tags: ${{ steps.set-tag.outputs.full }}
+
+  pull-and-run:
+    name: "Pull from DockerHub & Run"
+    runs-on: ubuntu-latest
+    needs: build-and-push
+
+    steps:
+      - name: Pull image from DockerHub
+        run: docker pull ${{ needs.build-and-push.outputs.image_full }}
+
+      - name: Run container
+        env:
+          IMAGE: ${{ needs.build-and-push.outputs.image_full }}
+          TAG:   ${{ needs.build-and-push.outputs.image_tag }}
+        run: |
+          docker run -d \
+            -p 8080:5000 \
+            -e ENVIRONMENT=$TAG \
+            -e APP_VERSION="3.0.0" \
+            --name workshop-app \
+            $IMAGE
+
+      - name: Wait for container to start
+        run: sleep 3
+
+      - name: Health check
+        run: curl -f http://localhost:8080/health
+
+      - name: Test API response
+        run: |
+          curl -s http://localhost:8080/ | python3 -m json.tool
+          curl -s http://localhost:8080/info | python3 -m json.tool
+
+      - name: Show container logs
+        if: always()
+        run: docker logs workshop-app
+
+      - name: Stop and remove container
+        if: always()
+        run: docker rm -f workshop-app || true

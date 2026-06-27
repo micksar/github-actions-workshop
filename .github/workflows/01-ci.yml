@@ -1,0 +1,107 @@
+# ============================================================
+#  EXERCISE 1 — Your First CI Pipeline  (~35 min)
+# ============================================================
+#
+# ΣΤΟΧΟΣ: Κάθε φορά που κάποιος κάνει push ή ανοίγει PR,
+#         τα tests να τρέχουν αυτόματα σε GitHub runners.
+#
+# ΤΙ ΘΑ ΜΑΘΕΙΣ:
+#   - Πώς να ορίσεις triggers (on:)
+#   - Πώς να χρησιμοποιείς environment variables
+#   - Πώς να τρέχεις pytest μέσα σε workflow
+#
+# ΟΔΗΓΙΕΣ: Βρες όλα τα σχόλια "TODO" και συμπλήρωσε τον κώδικα.
+# ============================================================
+
+name: "Exercise 1 — CI Pipeline"
+
+# TODO 1: Ορίσε πότε να τρέχει αυτό το workflow.
+#
+# Θέλουμε να τρέχει:
+#   - Σε κάθε push, σε ΟΠΟΙΟΔΗΠΟΤΕ branch  →  branches: ['**']
+#   - Σε pull_request προς main ή develop
+#
+# Hint: χρησιμοποίησε δύο events: push και pull_request
+#
+on:
+  # --- ΓΡΑΨΕ ΕΔΩ ---
+  # push:
+  #   branches: ???
+  # pull_request:
+  #   branches: ???
+
+
+jobs:
+
+  # ── Job 1: Lint check (έτοιμο — μελέτησέ το) ─────────────────────────
+  lint:
+    name: "Lint Check"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install flake8
+        run: pip install flake8
+
+      - name: Run lint
+        run: flake8 app/ --max-line-length=100 --ignore=E501
+
+  # ── Job 2: Tests (εσύ θα το συμπληρώσεις) ────────────────────────────
+  test:
+    name: "Run Tests"
+    runs-on: ubuntu-latest
+    needs: lint          # περιμένει να τελειώσει το lint πρώτα
+
+    # TODO 2: Ορίσε environment variables για αυτό το job.
+    #         Θέλουμε:  ENVIRONMENT=testing  και  TEAM_NAME=<το όνομα της ομάδας σου>
+    #
+    env:
+      # --- ΓΡΑΨΕ ΕΔΩ ---
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # TODO 3: Πρόσθεσε ένα step που να κάνει "Set up Python 3.11"
+      #         Hint: uses: actions/setup-python@v5
+      #
+      # --- ΓΡΑΨΕ ΕΔΩ ---
+
+      # TODO 4: Πρόσθεσε step για install dependencies
+      #         run: pip install -r app/requirements.txt
+      #
+      # --- ΓΡΑΨΕ ΕΔΩ ---
+
+      # TODO 5: Πρόσθεσε step για να τρέξεις τα tests
+      #         Hint: pytest app/tests/ -v
+      #
+      # --- ΓΡΑΨΕ ΕΔΩ ---
+
+      - name: Print environment info
+        run: |
+          echo "Running on branch: ${{ github.ref_name }}"
+          echo "Triggered by: ${{ github.actor }}"
+          echo "Environment variable ENVIRONMENT=$ENVIRONMENT"
+
+  # ── Job 3: Summary (έτοιμο) ───────────────────────────────────────────
+  summary:
+    name: "Pipeline Summary"
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    if: always()
+
+    steps:
+      - name: Print result
+        run: |
+          echo "=================================="
+          echo "CI Pipeline Complete!"
+          echo "Lint:  ${{ needs.lint.result }}"
+          echo "Tests: ${{ needs.test.result }}"
+          echo "=================================="

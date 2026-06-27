@@ -1,0 +1,159 @@
+# ============================================================
+#  EXERCISE 2 — Branch-Based Deployments  (~45 min)
+# ============================================================
+#
+# ΣΤΟΧΟΣ: Ανάλογα με ποιο branch γίνεται push,
+#         να γίνεται deploy σε διαφορετικό environment.
+#
+#   develop branch  →  deploy στο STAGING
+#   main branch     →  deploy στο PRODUCTION
+#
+# ΤΙ ΘΑ ΜΑΘΕΙΣ:
+#   - Πώς να χρησιμοποιείς Secrets
+#   - Conditional jobs με if:
+#   - GitHub Environments (staging / production)
+#   - outputs: για να περνάς τιμές μεταξύ jobs
+#
+# ΠΡΟΑΠΑΙΤΟΥΜΕΝΟ: Φτιάξε στο GitHub repo σου:
+#   Settings → Secrets → Actions:
+#     STAGING_DEPLOY_TOKEN   = "staging-secret-123"
+#     PROD_DEPLOY_TOKEN      = "prod-secret-456"
+#     NOTIFY_WEBHOOK         = "https://example.com/notify"
+#
+# ============================================================
+
+name: "Exercise 2 — Deploy by Branch"
+
+on:
+  push:
+    # TODO 1: Ορίσε ότι τρέχει μόνο σε push στα branches: develop ΚΑΙ main
+    branches:
+      # --- ΓΡΑΨΕ ΕΔΩ ---
+
+# TODO 2: Ορίσε ένα global env variable APP_VERSION με την τιμή "2.0.0"
+#         Αυτό θα είναι διαθέσιμο σε όλα τα jobs.
+env:
+  # --- ΓΡΑΨΕ ΕΔΩ ---
+
+
+jobs:
+
+  # ── Job 1: Detect environment (έτοιμο — μελέτησέ το) ─────────────────
+  detect-env:
+    name: "Detect Target Environment"
+    runs-on: ubuntu-latest
+
+    outputs:
+      environment: ${{ steps.set-env.outputs.environment }}
+      deploy_url:  ${{ steps.set-env.outputs.deploy_url }}
+
+    steps:
+      - name: Set environment based on branch
+        id: set-env
+        run: |
+          if [ "${{ github.ref_name }}" == "main" ]; then
+            echo "environment=production" >> $GITHUB_OUTPUT
+            echo "deploy_url=https://app.myfintech.com" >> $GITHUB_OUTPUT
+          else
+            echo "environment=staging" >> $GITHUB_OUTPUT
+            echo "deploy_url=https://staging.myfintech.com" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Show detected environment
+        run: |
+          echo "Branch:      ${{ github.ref_name }}"
+          echo "Environment: ${{ steps.set-env.outputs.environment }}"
+          echo "Deploy URL:  ${{ steps.set-env.outputs.deploy_url }}"
+
+
+  # ── Job 2: Deploy to STAGING ──────────────────────────────────────────
+  deploy-staging:
+    name: "Deploy → Staging"
+    runs-on: ubuntu-latest
+    needs: detect-env
+    # TODO 3: Βάλε condition ώστε αυτό το job να τρέχει ΜΟΝΟ αν το branch είναι "develop"
+    #         Hint: github.ref_name == ???
+    if: # --- ΓΡΑΨΕ ΕΔΩ ---
+
+    environment:
+      name: staging
+      url: ${{ needs.detect-env.outputs.deploy_url }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to Staging
+        # TODO 4: Χρησιμοποίησε το secret STAGING_DEPLOY_TOKEN
+        #         Syntax: ${{ secrets.STAGING_DEPLOY_TOKEN }}
+        env:
+          DEPLOY_TOKEN: # --- ΓΡΑΨΕ ΕΔΩ ---
+          ENVIRONMENT: staging
+          APP_VERSION: ${{ env.APP_VERSION }}
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "  STAGING DEPLOYMENT"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "Version:     $APP_VERSION"
+          echo "Environment: $ENVIRONMENT"
+          echo "Token (4 chars): ${DEPLOY_TOKEN:0:4}****"
+          echo ""
+          echo "Simulating deployment..."
+          sleep 2
+          echo "✅ Successfully deployed to STAGING!"
+          echo "URL: https://staging.myfintech.com"
+
+      - name: Run smoke tests
+        run: |
+          echo "Running smoke tests on staging..."
+          echo "  ✓ Health check: OK"
+          echo "  ✓ Auth endpoint: OK"
+          echo "  ✓ API response: OK"
+
+
+  # ── Job 3: Deploy to PRODUCTION ───────────────────────────────────────
+  deploy-production:
+    name: "Deploy → Production"
+    runs-on: ubuntu-latest
+    needs: detect-env
+    # TODO 5: Βάλε condition ώστε αυτό το job να τρέχει ΜΟΝΟ αν το branch είναι "main"
+    if: # --- ΓΡΑΨΕ ΕΔΩ ---
+
+    environment:
+      name: production
+      url: ${{ needs.detect-env.outputs.deploy_url }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # TODO 6: Πρόσθεσε ένα step "Pre-deployment check" που να τυπώνει:
+      #         "⚠️  PRODUCTION deployment! Version: <APP_VERSION>"
+      #         και να χρησιμοποιεί το secret PROD_DEPLOY_TOKEN σαν env variable
+      #
+      # --- ΓΡΑΨΕ ΕΔΩ ---
+
+      - name: Deploy to Production
+        env:
+          DEPLOY_TOKEN: ${{ secrets.PROD_DEPLOY_TOKEN }}
+          ENVIRONMENT: production
+          APP_VERSION: ${{ env.APP_VERSION }}
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "  ⚠️  PRODUCTION DEPLOYMENT"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "Version:     $APP_VERSION"
+          echo "Environment: $ENVIRONMENT"
+          echo "Token (4 chars): ${DEPLOY_TOKEN:0:4}****"
+          echo ""
+          echo "Simulating deployment..."
+          sleep 3
+          echo "✅ Successfully deployed to PRODUCTION!"
+          echo "URL: https://app.myfintech.com"
+
+      - name: Notify team
+        # TODO 7: Χρησιμοποίησε το secret NOTIFY_WEBHOOK ως env variable WEBHOOK_URL
+        env:
+          WEBHOOK_URL: # --- ΓΡΑΨΕ ΕΔΩ ---
+        run: |
+          echo "Sending notification to team..."
+          echo "Webhook URL: ${WEBHOOK_URL:0:20}..."
+          echo "✅ Team notified!"

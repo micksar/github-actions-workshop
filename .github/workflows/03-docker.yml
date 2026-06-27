@@ -1,0 +1,157 @@
+# ============================================================
+#  EXERCISE 3 — Docker Build, Push & Run  (~50 min)
+# ============================================================
+#
+# ΣΤΟΧΟΣ: Να χτίζεις Docker image, να το ανεβάζεις στο DockerHub,
+#         και να το κατεβάζεις ξανά για να τρέξεις τo container —
+#         όλα αυτόματα μέσω GitHub Actions.
+#
+# TAG STRATEGY:
+#   push σε develop  →  image tag:  <username>/workshop-app:develop
+#   push σε main     →  image tag:  <username>/workshop-app:latest
+#
+# ΠΡΟΑΠΑΙΤΟΥΜΕΝΟ: Φτιάξε λογαριασμό στο DockerHub και πρόσθεσε secrets:
+#   DOCKERHUB_USERNAME = το DockerHub username σου
+#   DOCKERHUB_TOKEN    = DockerHub Access Token (Account Settings → Security)
+#
+# ============================================================
+
+name: "Exercise 3 — Docker Build & Push"
+
+on:
+  push:
+    branches: [main, develop]
+
+jobs:
+
+  # ── Job 1: Build & Push ───────────────────────────────────────────────
+  build-and-push:
+    name: "Build & Push to DockerHub"
+    runs-on: ubuntu-latest
+
+    outputs:
+      image_tag: ${{ steps.set-tag.outputs.tag }}
+      image_full: ${{ steps.set-tag.outputs.full }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # TODO 1: Ορίσε το image tag ανάλογα με το branch
+      #
+      # Αν branch == main   → tag = "latest"
+      # Αν branch == develop → tag = "develop"
+      #
+      # Hint: Χρησιμοποίησε το $GITHUB_OUTPUT για να βγάλεις outputs:
+      #   echo "tag=latest" >> $GITHUB_OUTPUT
+      #   echo "full=${{ secrets.DOCKERHUB_USERNAME }}/workshop-app:latest" >> $GITHUB_OUTPUT
+      #
+      - name: Set image tag
+        id: set-tag
+        run: |
+          # --- ΓΡΑΨΕ ΕΔΩ ---
+          # if [ "${{ github.ref_name }}" == "???" ]; then
+          #   echo "tag=???" >> $GITHUB_OUTPUT
+          #   echo "full=???" >> $GITHUB_OUTPUT
+          # else
+          #   ...
+          # fi
+
+      - name: Show image info
+        run: |
+          echo "Branch:     ${{ github.ref_name }}"
+          echo "Tag:        ${{ steps.set-tag.outputs.tag }}"
+          echo "Full image: ${{ steps.set-tag.outputs.full }}"
+
+      # TODO 2: Κάνε login στο DockerHub
+      #         uses: docker/login-action@v3
+      #         with: username και password από secrets
+      #
+      # --- ΓΡΑΨΕ ΕΔΩ ---
+
+      # TODO 3: Build και Push το image
+      #         uses: docker/build-push-action@v6
+      #         with:
+      #           context: ./app        ← ο φάκελος με το Dockerfile
+      #           push: true
+      #           tags: <το full image name από το output>
+      #
+      # --- ΓΡΑΨΕ ΕΔΩ ---
+
+
+  # ── Job 2: Pull & Run ─────────────────────────────────────────────────
+  pull-and-run:
+    name: "Pull from DockerHub & Run"
+    runs-on: ubuntu-latest
+    needs: build-and-push
+
+    steps:
+      - name: Pull image from DockerHub
+        # TODO 4: Κάνε pull το image που μόλις push-αρες
+        #         docker pull <το full image name>
+        #         Hint: χρησιμοποίησε το needs.build-and-push.outputs.image_full
+        run: |
+          # --- ΓΡΑΨΕ ΕΔΩ ---
+
+      # TODO 5: Τρέξε το container με τα παρακάτω:
+      #   - detached mode (-d)
+      #   - port mapping: 8080:5000
+      #   - env variables: ENVIRONMENT και APP_VERSION
+      #   - name: workshop-app
+      #
+      - name: Run container
+        env:
+          IMAGE: ${{ needs.build-and-push.outputs.image_full }}
+          TAG:   ${{ needs.build-and-push.outputs.image_tag }}
+        run: |
+          # --- ΓΡΑΨΕ ΕΔΩ ---
+          # docker run -d \
+          #   -p ???:??? \
+          #   -e ENVIRONMENT=??? \
+          #   -e APP_VERSION="3.0.0" \
+          #   --name workshop-app \
+          #   $IMAGE
+
+      - name: Wait for container to start
+        run: sleep 3
+
+      # TODO 6: Κάνε health check — κάλεσε το /health endpoint
+      #         curl -f http://localhost:8080/health
+      #         Αν επιστρέψει error, το pipeline πρέπει να αποτύχει (exit code ≠ 0)
+      #
+      - name: Health check
+        run: |
+          # --- ΓΡΑΨΕ ΕΔΩ ---
+
+      - name: Test API response
+        run: |
+          echo "Testing main endpoint..."
+          curl -s http://localhost:8080/ | python3 -m json.tool
+          echo ""
+          echo "Testing info endpoint..."
+          curl -s http://localhost:8080/info | python3 -m json.tool
+
+      - name: Show container logs
+        if: always()
+        run: docker logs workshop-app
+
+      - name: Stop and remove container
+        if: always()
+        run: docker rm -f workshop-app || true
+
+
+  # ── Job 3: BONUS — Security Scan (έτοιμο) ────────────────────────────
+  # Uncomment αυτό το job αφού ολοκληρώσεις τα παραπάνω.
+  #
+  # security-scan:
+  #   name: "BONUS: Trivy Security Scan"
+  #   runs-on: ubuntu-latest
+  #   needs: build-and-push
+  #
+  #   steps:
+  #     - name: Run Trivy vulnerability scanner
+  #       uses: aquasecurity/trivy-action@master
+  #       with:
+  #         image-ref: ${{ needs.build-and-push.outputs.image_full }}
+  #         format: table
+  #         severity: CRITICAL,HIGH

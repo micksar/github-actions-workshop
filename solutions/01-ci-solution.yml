@@ -1,0 +1,62 @@
+name: "Exercise 1 — CI Pipeline (SOLUTION)"
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+
+  lint:
+    name: "Lint Check"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install flake8
+      - run: flake8 app/ --max-line-length=100 --ignore=E501
+
+  test:
+    name: "Run Tests"
+    runs-on: ubuntu-latest
+    needs: lint
+
+    env:
+      ENVIRONMENT: testing
+      TEAM_NAME: "Team Alpha"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r app/requirements.txt
+
+      - name: Run tests
+        run: pytest app/tests/ -v
+
+      - name: Print environment info
+        run: |
+          echo "Running on branch: ${{ github.ref_name }}"
+          echo "Triggered by: ${{ github.actor }}"
+          echo "Environment variable ENVIRONMENT=$ENVIRONMENT"
+
+  summary:
+    name: "Pipeline Summary"
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    if: always()
+    steps:
+      - run: |
+          echo "=================================="
+          echo "CI Pipeline Complete!"
+          echo "Lint:  ${{ needs.lint.result }}"
+          echo "Tests: ${{ needs.test.result }}"
+          echo "=================================="
