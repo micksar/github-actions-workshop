@@ -4,7 +4,7 @@
 
 ---
 
-## Μέρος 1 — Βασικές Εννοιες (5 λεπτά)
+## Μέρος 1 — Βασικές Εννοιες
 
 ```
 DockerHub (Registry)
@@ -216,37 +216,6 @@ docker run -it --rm alpine sh
 # exit
 ```
 
----
-
-### Παράδειγμα D: Η Workshop Εφαρμογή μας
-
-```bash
-# Αντικατάστησε <username> με το DockerHub username σου
-docker pull <username>/workshop-app:develop
-
-# Σήκωσε με env variables
-docker run -d \
-  -p 8080:5000 \
-  -e ENVIRONMENT=local-demo \
-  -e APP_VERSION=1.0.0 \
-  -e TEAM_NAME="Mellon Group" \
-  --name workshop \
-  <username>/workshop-app:develop
-
-# Test endpoints
-curl http://localhost:8080/
-curl http://localhost:8080/health
-curl http://localhost:8080/info
-
-# Pretty print JSON
-curl -s http://localhost:8080/ | python3 -m json.tool
-
-# Δες logs
-docker logs workshop
-
-# Σταμάτα & διέγραψε
-docker rm -f workshop
-```
 
 ---
 
